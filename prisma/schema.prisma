@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// HOT STORAGE (Operational/Live State)
+// ============================================
+// These tables use UPSERT pattern for fast current-state access
+
+model MeterLiveState {
+  meterId         String   @id @db.VarChar(50)
+  kwhConsumedAc   Float    @db.DoublePrecision
+  voltage         Float    @db.DoublePrecision
+  lastUpdatedAt   DateTime @default(now()) @db.Timestamptz
+
+  @@map("meter_live_state")
+  @@index([lastUpdatedAt])
+}
+
+model VehicleLiveState {
+  vehicleId       String   @id @db.VarChar(50)
+  soc             Float    @db.DoublePrecision // State of Charge (%)
+  kwhDeliveredDc  Float    @db.DoublePrecision
+  batteryTemp     Float    @db.DoublePrecision
+  lastUpdatedAt   DateTime @default(now()) @db.Timestamptz
+
+  @@map("vehicle_live_state")
+  @@index([lastUpdatedAt])
+}
+
+// ============================================
+// COLD STORAGE (Historical/Audit Trail)
+// ============================================
+// These tables use INSERT-only pattern for long-term analytics
+
+model MeterTelemetryHistory {
+  id              BigInt   @id @default(autoincrement())
+  meterId         String   @db.VarChar(50)
+  kwhConsumedAc   Float    @db.DoublePrecision
+  voltage         Float    @db.DoublePrecision
+  timestamp       DateTime @db.Timestamptz
+  ingestedAt      DateTime @default(now()) @db.Timestamptz
+
+  @@map("meter_telemetry_history")
+  @@index([meterId, timestamp])
+  @@index([timestamp])
+}
+
+model VehicleTelemetryHistory {
+  id              BigInt   @id @default(autoincrement())
+  vehicleId       String   @db.VarChar(50)
+  soc             Float    @db.DoublePrecision
+  kwhDeliveredDc  Float    @db.DoublePrecision
+  batteryTemp     Float    @db.DoublePrecision
+  timestamp       DateTime @db.Timestamptz
+  ingestedAt      DateTime @default(now()) @db.Timestamptz
+
+  @@map("vehicle_telemetry_history")
+  @@index([vehicleId, timestamp])
+  @@index([timestamp])
+}
